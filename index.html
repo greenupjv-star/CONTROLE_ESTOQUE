@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Greenup Design – Controle de Estoque</title>
+<style>
+  :root {
+    --green: #2d7a2d;
+    --green-light: #4caf50;
+    --green-pale: #e8f5e9;
+    --red: #c0392b;
+    --orange: #e67e22;
+    --gray: #f5f5f5;
+    --border: #ddd;
+    --text: #333;
+    --white: #fff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f0f2f0; color: var(--text); }
+
+  /* AUTH */
+  #auth-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; background: linear-gradient(135deg, #1a4a1a, #2d7a2d);
+  }
+  .auth-box {
+    background: var(--white); border-radius: 12px; padding: 40px 36px;
+    width: 100%; max-width: 380px; box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  }
+  .auth-box .logo { text-align: center; margin-bottom: 28px; }
+  .auth-box .logo h1 { color: var(--green); font-size: 1.6rem; }
+  .auth-box .logo p { color: #888; font-size: .85rem; margin-top: 4px; }
+  .auth-box input {
+    width: 100%; padding: 11px 14px; border: 1px solid var(--border);
+    border-radius: 7px; font-size: .95rem; margin-bottom: 12px;
+  }
+  .auth-box input:focus { outline: none; border-color: var(--green); }
+  .btn-primary {
+    width: 100%; padding: 12px; background: var(--green);
+    color: var(--white); border: none; border-radius: 7px;
+    font-size: 1rem; cursor: pointer; font-weight: 600;
+    transition: background .2s;
+  }
+  .btn-primary:hover { background: #1e5c1e; }
+  #auth-error { color: var(--red); font-size: .85rem; margin-top: 8px; text-align: center; }
+
+  /* LAYOUT */
+  #app { display: none; }
+  header {
+    background: var(--green); color: var(--white);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; height: 54px; position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: .5px; }
+  header .user-info { display: flex; align-items: center; gap: 12px; font-size: .85rem; }
+  header .badge {
+    background: rgba(255,255,255,.2); padding: 3px 10px;
+    border-radius: 20px; font-size: .75rem; font-weight: 600;
+  }
+  .btn-logout {
+    background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
+    color: var(--white); padding: 5px 12px; border-radius: 6px;
+    cursor: pointer; font-size: .82rem;
+  }
+
+  nav {
+    background: var(--white); border-bottom: 1px solid var(--border);
+    display: flex; gap: 0; padding: 0 20px; overflow-x: auto;
+  }
+  nav button {
+    padding: 12px 18px; border: none; background: none;
+    cursor: pointer; font-size: .88rem; color: #666;
+    border-bottom: 3px solid transparent; white-space: nowrap;
+    transition: color .15s;
+  }
+  nav button.active { color: var(--green); border-bottom-color: var(--green); font-weight: 600; }
+  nav button:hover { color: var(--green); }
+
+  main { padding: 20px; max-width: 1400px; margin: 0 auto; }
+
+  /* CARDS */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 22px; }
+  .card {
+    background: var(--white); border-radius: 10px; padding: 18px 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 4px solid var(--green);
+  }
+  .card.alert { border-left-color: var(--orange); }
+  .card.danger { border-left-color: var(--red); }
+  .card .label { font-size: .78rem; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+  .card .value { font-size: 1.9rem; font-weight: 700; color: var(--text); margin-top: 4px; }
+
+  /* TABLE */
+  .table-wrap { background: var(--white); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+  .table-header { padding: 14px 18px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+  .table-header h2 { font-size: 1rem; font-weight: 600; flex: 1; }
+  input[type=text], select {
+    padding: 8px 12px; border: 1px solid var(--border); border-radius: 7px;
+    font-size: .88rem; outline: none;
+  }
+  input[type=text]:focus, select:focus { border-color: var(--green); }
+  .search-box { width: 260px; }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  thead th { background: var(--gray); padding: 10px 14px; text-align: left; font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .3px; border-bottom: 2px solid var(--border); }
+  tbody tr { border-bottom: 1px solid #f0f0f0; transition: background .1s; }
+  tbody tr:hover { background: var(--green-pale); }
+  tbody td { padding: 9px 14px; vertical-align: middle; }
+
+  /* BADGES */
+  .status-ok { background: #e8f5e9; color: #2e7d32; padding: 3px 10px; border-radius: 20px; font-size: .75rem; font-weight: 600; }
+  .status-comprar { background: #fff3e0; color: #e65100; padding: 3px 10px; border-radius: 20px; font-size: .75rem; font-weight: 600; }
+  .tipo-entrada { background: #e3f2fd; color: #1565c0; padding: 3px 10px; border-radius: 20px; font-size: .75rem; font-weight: 600; }
+  .tipo-saida { background: #fce4ec; color: #880e4f; padding: 3px 10px; border-radius: 20px; font-size: .75rem; font-weight: 600; }
+  .tipo-extravio { background: #fbe9e7; color: #bf360c; padding: 3px 10px; border-radius: 20px; font-size: .75rem; font-weight: 600; }
+
+  /* BUTTONS */
+  .btn { padding: 8px 16px; border-radius: 7px; border: none; cursor: pointer; font-size: .85rem; font-weight: 600; transition: opacity .15s; }
+  .btn:hover { opacity: .85; }
+  .btn-green { background: var(--green); color: var(--white); }
+  .btn-sm { padding: 5px 10px; font-size: .78rem; }
+  .btn-red { background: var(--red); color: var(--white); }
+  .btn-orange { background: var(--orange); color: var(--white); }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--white); border-radius: 12px;
+    padding: 28px 30px; width: 100%; max-width: 520px;
+    max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  }
+  .modal h2 { font-size: 1.1rem; margin-bottom: 20px; color: var(--green); }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: .82rem; font-weight: 600; margin-bottom: 5px; color: #555; }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+    border-radius: 7px; font-size: .9rem;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--green); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .saldo-readonly { background: var(--gray); font-weight: 700; color: var(--green); }
+
+  /* TOAST */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: #333; color: var(--white); padding: 12px 20px;
+    border-radius: 8px; font-size: .88rem; z-index: 999;
+    opacity: 0; transition: opacity .3s; pointer-events: none;
+  }
+  #toast.show { opacity: 1; }
+  #toast.success { background: var(--green); }
+  #toast.error { background: var(--red); }
+
+  /* SETUP BANNER */
+  .setup-banner {
+    background: #fff3e0; border: 1px solid #ffcc02; border-radius: 8px;
+    padding: 14px 18px; margin-bottom: 18px; font-size: .88rem; color: #5d4037;
+  }
+  .setup-banner code { background: #f5f5f5; padding: 2px 6px; border-radius: 4px; font-size: .82rem; }
+
+  /* EMPTY */
+  .empty { text-align: center; padding: 48px 20px; color: #aaa; font-size: .95rem; }
+
+  @media (max-width: 640px) {
+    .search-box { width: 100%; }
+    .field-row { grid-template-columns: 1fr; }
+    main { padding: 12px; }
+    .cards { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="logo">
+      <h1>🌿 Greenup Design</h1>
+      <p>Controle de Estoque</p>
+    </div>
+    <input type="email" id="email" placeholder="E-mail" autocomplete="email">
+    <input type="password" id="password" placeholder="Senha">
+    <button class="btn-primary" onclick="login()">Entrar</button>
+    <div id="auth-error"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <h1>🌿 Greenup Design — Estoque</h1>
+    <div class="user-info">
+      <span id="user-name"></span>
+      <span class="badge" id="user-badge"></span>
+      <button class="btn-logout" onclick="logout()">Sair</button>
+    </div>
+  </header>
+
+  <nav>
+    <button class="active" onclick="showTab('dashboard')">Dashboard</button>
+    <button onclick="showTab('estoque')">Estoque</button>
+    <button id="btn-tab-mov" style="display:none" onclick="showTab('movimentacao')">Movimentação</button>
+    <button onclick="showTab('historico')">Histórico</button>
+    <button id="btn-tab-cotacao" style="display:none" onclick="showTab('cotacao')">Hist. Compras</button>
+    <button id="btn-tab-admin" style="display:none" onclick="showTab('admin')">Usuários</button>
+  </nav>
+
+  <main>
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard">
+      <div class="cards">
+        <div class="card"><div class="label">Total de Produtos</div><div class="value" id="kpi-total">—</div></div>
+        <div class="card"><div class="label">Em Estoque (OK)</div><div class="value" id="kpi-ok">—</div></div>
+        <div class="card alert"><div class="label">Para Comprar</div><div class="value" id="kpi-comprar">—</div></div>
+        <div class="card danger"><div class="label">Saldo Zero</div><div class="value" id="kpi-zero">—</div></div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header"><h2>⚠️ Produtos para Comprar</h2></div>
+        <table>
+          <thead><tr><th>Código</th><th>Descrição</th><th>Saldo</th><th id="th-status-compra" style="display:none">Status Compra</th><th id="th-prazo-compra" style="display:none">Prazo Entrega</th><th id="th-obs-compra" style="display:none">Observações</th><th id="th-salvar-compra" style="display:none"></th><th>Ação</th></tr></thead>
+          <tbody id="tbl-alertas"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ESTOQUE -->
+    <div id="tab-estoque" style="display:none">
+      <div class="table-wrap">
+        <div class="table-header">
+          <h2>Produtos</h2>
+          <input type="text" class="search-box" id="search-estoque" placeholder="🔍 Buscar por código ou descrição..." oninput="filtrarEstoque()">
+          <button class="btn btn-green" id="btn-novo-produto" onclick="abrirModalProduto()">+ Novo Produto</button>
+        </div>
+        <table>
+          <thead><tr><th>Código</th><th>Descrição</th><th>Endereço</th><th>Entrada</th><th>Saída</th><th>Saldo</th><th>Situação</th><th>Fornecedor</th><th>Ações</th></tr></thead>
+          <tbody id="tbl-estoque"></tbody>
+        </table>
+        <div class="empty" id="estoque-empty" style="display:none">Nenhum produto encontrado.</div>
+      </div>
+    </div>
+
+    <!-- MOVIMENTAÇÃO -->
+    <div id="tab-movimentacao" style="display:none">
+      <div class="table-wrap" style="max-width:560px">
+        <div class="table-header"><h2>Registrar Movimentação</h2></div>
+        <div style="padding:22px">
+          <div class="field">
+            <label>Tipo</label>
+            <select id="mov-tipo" onchange="atualizarLabelMov()">
+              <option value="entrada">Entrada</option>
+              <option value="saida">Saída</option>
+              <option value="extravio">Extravio</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Produto</label>
+            <select id="mov-codigo"><option value="">Selecione...</option></select>
+          </div>
+          <div class="field">
+            <label id="mov-label-qtd">Quantidade</label>
+            <input type="number" id="mov-qtd" min="1" placeholder="0">
+          </div>
+          <div class="field">
+            <label>Observação (opcional)</label>
+            <textarea id="mov-obs" rows="2" placeholder="..."></textarea>
+          </div>
+          <button class="btn btn-green" style="width:100%;padding:12px" onclick="registrarMovimentacao()">Registrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTÓRICO -->
+    <div id="tab-historico" style="display:none">
+      <div class="table-wrap">
+        <div class="table-header">
+          <h2>Histórico de Movimentações</h2>
+          <input type="text" class="search-box" id="search-hist" placeholder="🔍 Buscar..." oninput="filtrarHistorico()">
+          <select id="filter-tipo" onchange="filtrarHistorico()" style="width:140px">
+            <option value="">Todos os tipos</option>
+            <option value="entrada">Entrada</option>
+            <option value="saida">Saída</option>
+            <option value="extravio">Extravio</option>
+          </select>
+        </div>
+        <table>
+          <thead><tr><th>Data</th><th>Código</th><th>Descrição</th><th>Tipo</th><th>Qtd</th><th>Responsável</th><th>Observação</th></tr></thead>
+          <tbody id="tbl-historico"></tbody>
+        </table>
+        <div class="empty" id="hist-empty" style="display:none">Nenhuma movimentação encontrada.</div>
+      </div>
+    </div>
+
+    <!-- HIST COMPRAS -->
+    <div id="tab-cotacao" style="display:none">
+      <div class="table-wrap">
+        <div class="table-header">
+          <h2>📋 Histórico de Compras / Cotações</h2>
+          <input type="text" class="search-box" id="search-cotacao" placeholder="🔍 Buscar..." oninput="filtrarCotacao()">
+          <select id="filter-cotacao-status" onchange="filtrarCotacao()" style="width:140px">
+            <option value="">Todos</option>
+            <option value="COTANDO">Cotando</option>
+            <option value="COMPRADO">Comprado</option>
+          </select>
+        </div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Data</th><th>Código</th><th>Descrição</th><th>Status</th><th>Prazo Entrega</th><th>Observações</th><th>Responsável</th></tr></thead>
+          <tbody id="tbl-cotacao"></tbody>
+        </table></div>
+        <div class="empty" id="cotacao-empty" style="display:none">Nenhum registro encontrado.</div>
+      </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="tab-admin" style="display:none">
+      <div class="table-wrap" style="max-width:400px">
+        <div class="table-header"><h2>Gerenciar Usuários</h2></div>
+        <div style="padding:20px">
+          <button class="btn btn-green" style="width:100%;padding:12px" onclick="abrirModalUsuario()">👤 Criar Usuário</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL PRODUTO -->
+<div class="modal-overlay" id="modal-produto">
+  <div class="modal">
+    <h2 id="modal-produto-title">Cadastrar Produto</h2>
+    <input type="hidden" id="prod-id">
+    <div class="field-row">
+      <div class="field"><label>Código *</label><input type="text" id="prod-codigo" placeholder="AB100"></div>
+      <div class="field"><label>Endereço</label><input type="text" id="prod-endereco" placeholder="A1-01"></div>
+    </div>
+    <div class="field"><label>Descrição *</label><input type="text" id="prod-descricao"></div>
+    <div class="field-row">
+      <div class="field"><label>Entrada</label><input type="number" id="prod-entrada" min="0" value="0" oninput="recalcSaldo()"></div>
+      <div class="field"><label>Saída</label><input type="number" id="prod-saida" min="0" value="0" oninput="recalcSaldo()"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Saldo (calculado)</label><input type="number" id="prod-saldo" class="saldo-readonly" readonly></div>
+      <div class="field"><label>Alarme</label><input type="number" id="prod-alarme" min="0" value="0" placeholder="Qtd mínima"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Prazo de Entrega</label><input type="text" id="prod-prazo" placeholder="Ex: 5 dias"></div>
+      <div class="field"><label>Fornecedor</label><input type="text" id="prod-fornecedor"></div>
+    </div>
+    <div class="field"><label>Status</label><input type="text" id="prod-status" placeholder="Ativo"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharModal('modal-produto')">Cancelar</button>
+      <button class="btn btn-green" onclick="salvarProduto()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL USUÁRIO -->
+<div class="modal-overlay" id="modal-usuario">
+  <div class="modal">
+    <h2>Criar Usuário</h2>
+    <div class="field"><label>Nome</label><input type="text" id="usr-nome"></div>
+    <div class="field"><label>E-mail</label><input type="email" id="usr-email"></div>
+    <div class="field"><label>Senha</label><input type="password" id="usr-senha"></div>
+    <div class="field">
+      <label>Tipo</label>
+      <select id="usr-tipo"><option value="vendedor">Vendedor</option><option value="comprador">Comprador</option><option value="admin">Admin</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharModal('modal-usuario')">Cancelar</button>
+      <button class="btn btn-green" onclick="criarUsuario()">Criar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- FIREBASE SDK -->
+<script type="module">
+// ============================================================
+// ⚙️ CONFIGURAÇÃO FIREBASE — EDITE AQUI COM SEUS DADOS
+// ============================================================
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyA0O0Q6qXcQ-9ysmMVXg9w2_a85ZWxLIZE",
+  authDomain: "controle-de-estoque-greenup.firebaseapp.com",
+  projectId: "controle-de-estoque-greenup",
+  storageBucket: "controle-de-estoque-greenup.firebasestorage.app",
+  messagingSenderId: "450979746182",
+  appId: "1:450979746182:web:2049aa21774c300ba3dc07"
+};
+// ============================================================
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
+  query, orderBy, onSnapshot, serverTimestamp, where }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const app = initializeApp(FIREBASE_CONFIG);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// ============================================================
+// DADOS DA PLANILHA (53 produtos)
+// ============================================================
+const PRODUTOS_PLANILHA = [
+  {codigo:"AB100",descricao:"ABRAÇADEIRA DE NYLON 2,5X100",endereco:"",entrada:27800,saida:2200,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"AB200",descricao:"ABRAÇADEIRA DE NYLON 2,5X200",endereco:"",entrada:4700,saida:900,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"ABM34",descricao:"ABRAÇADEIRA METALICA ROSCA S/ FIM 3/4",endereco:"",entrada:100,saida:0,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"AF341",descricao:"ADAPTADOR FEMEA TRAMONTINA ROSCA 3/4 COM RED 1/2",endereco:"",entrada:928,saida:0,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"BCH06",descricao:"BUCHA COM ANEL 06",endereco:"",entrada:48000,saida:27000,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"BCH08",descricao:"BUCHA COM ANEL 08",endereco:"",entrada:42000,saida:2000,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"CXR25",descricao:"CAIXA DE PAPELÃO DE REVENDA MODULO 25 CM",endereco:"",entrada:3300,saida:12,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"CXR50",descricao:"CAIXA DE PAPELÃO DE REVENDA MODULO 50 CM",endereco:"",entrada:1920,saida:240,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"CXG46",descricao:"CAIXA DE PAPELAO GRANDE 46X50X25",endereco:"",entrada:60,saida:60,alarme:1,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"CXP20",descricao:"CAIXA DE PAPELÃO PADRÃO 20X20X10",endereco:"",entrada:100,saida:75,alarme:1,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"CXP25",descricao:"CAIXA DE PAPELAO PADRAO 25X50X27",endereco:"",entrada:300,saida:175,alarme:1,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"CXE25",descricao:"CAIXA DE PAPELÃO PARA EXPORTAÇÃO 25X50X27",endereco:"",entrada:465,saida:100,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"CM124",descricao:"CONECTOR 1/2\" PARA MANGUEIRA MICRO 4MM",endereco:"",entrada:600,saida:0,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"C2V32",descricao:"CONECTOR 2V/32A COMPACTO ELETRICO",endereco:"",entrada:95,saida:71,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"CPT08",descricao:"CONECTOR PINEUMATICO T 08MM",endereco:"",entrada:2400,saida:1050,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"CPL08",descricao:"CONECTOR PNEUMATICO L 08MM",endereco:"",entrada:1000,saida:100,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"IPL12",descricao:"COTOVELO 1/2 PARA IRRIGAÇÃO PRO",endereco:"",entrada:10000,saida:250,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"CP021",descricao:"CUIA PRETA TAM.21",endereco:"",entrada:5760,saida:2520,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"ERP12",descricao:"ENGATE RAPIDO P/ MANGUEIRA 1/2",endereco:"",entrada:30,saida:2,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"EAS01",descricao:"ESTACA COM ASPERSOR",endereco:"",entrada:13950,saida:3800,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"ETZ10",descricao:"ETIQUETA TERMICA ZEBRA 100X150",endereco:"",entrada:25,saida:10,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"FTG01",descricao:"FITA GOMADA",endereco:"",entrada:28,saida:17,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"FTR01",descricao:"FITA TRANSPARENTE",endereco:"",entrada:9,saida:2,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"FLHA4",descricao:"FOLHA DE PAPEL A4",endereco:"",entrada:3,saida:1,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"KPF01",descricao:"KIT PARAFUSOS DE FIXAÇÃO MODULOS GREENPLAST",endereco:"",entrada:3,saida:0.5,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"KPF02",descricao:"KIT PARAFUSOS DE FIXAÇÃO MODULOS GREENPLAST PLUS",endereco:"",entrada:2,saida:1,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"LJV7W",descricao:"LUMINARIA PARA JARDIM VERTICAL LIGHT UP",endereco:"",entrada:152,saida:43,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"MB175",descricao:"MANTA BIDIM 17,5CM DIAMETRO",endereco:"",entrada:3,saida:0,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"MNE01",descricao:"MANUAL DE INSTALAÇÃO EM ESPANHOL",endereco:"",entrada:1050,saida:0,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"MNP01",descricao:"MANUAL DE INSTALAÇÃO EM PORTUGUES",endereco:"",entrada:3375,saida:1375,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"MNI01",descricao:"MANUAL DE INSTALÇÃO EM INGLES",endereco:"",entrada:750,saida:0,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"MGP25",descricao:"MODULO GREENPLAST 25CM",endereco:"",entrada:1520,saida:880,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"MGP50",descricao:"MODULO GREENPLAST 50CM",endereco:"",entrada:10500,saida:6000,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"NVB32",descricao:"NIVEL BOLHA CILINDRICO 9,5MMX32MM",endereco:"",entrada:24500,saida:0,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"PFP60",descricao:"PAINEL FOLHAGEM PRETO 60X40",endereco:"",entrada:724,saida:76,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"PFV60",descricao:"PAINEL FOLHAGEM VERDE 60X40",endereco:"",entrada:100,saida:0,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"P45B8",descricao:"PARAFUSO CHATO PAN 4,5MM BUCHA 8",endereco:"",entrada:6500,saida:6500,alarme:1,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"PHS32",descricao:"PARAFUSO CHATO PHS 5/32X1.1/4",endereco:"",entrada:32000,saida:18300,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"P40B6",descricao:"PARAFUSO CHIP CHATA 4,0MM BUCHA 6",endereco:"",entrada:30000,saida:17000,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"PB532",descricao:"PORCA BORBOLETA 5/32",endereco:"",entrada:29000,saida:16000,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"POT23",descricao:"POTE TAM.23 PARA MODULOS GRENPLAST-PLANTAS GRANDES",endereco:"",entrada:1440,saida:1290,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"SLJ01",descricao:"SUPORTE P/ LUMINARIA JARDIM VERTICAL LIGHT UP",endereco:"",entrada:30,saida:0,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"IPT12",descricao:"TE 1/2 PARA IRRIGAÇÃO PRO",endereco:"",entrada:10000,saida:250,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"TIE11",descricao:"TEMPORIZADOR DIGITAL DE 1 SAIDA TIE11",endereco:"",entrada:20,saida:18,alarme:1,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"TIE21",descricao:"TEMPORIZADOR DIGITAL DE 2 SAIDAS TIE21",endereco:"",entrada:24,saida:6,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"TIP11",descricao:"TEMPORIZADOR PROGRAMAVEL 1 SAIDA TIP11",endereco:"",entrada:8,saida:8,alarme:1,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"TBF22",descricao:"TUBO LISO FIM DE LINHA 22,8",endereco:"",entrada:0,saida:0,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"TBL13",descricao:"TUBO LISO INICIO DE LINHA 13CM",endereco:"",entrada:0,saida:0,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"TBL22",descricao:"TUBO LISO IRRIGAÇÃO 22,8 LINHA",endereco:"",entrada:0,saida:0,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"TBL50",descricao:"TUBO LISO IRRIGAÇÃO VERTICAL 50CM",endereco:"",entrada:0,saida:0,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"TPU08",descricao:"TUBO PU PRETO 08MM",endereco:"",entrada:22,saida:11,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"IPU12",descricao:"UNIÃO 1/2 PARA IRRIGAÇÃO PRO",endereco:"",entrada:15000,saida:800,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+  {codigo:"VTO22",descricao:"VASO TRANSPARENTE P/ORQUIDEA TAM.22",endereco:"",entrada:150,saida:115,alarme:0,status:"",prazo_entrega:"",fornecedor:""},
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let currentUser = null;
+let currentRole = 'vendedor';
+let allProdutos = [];
+let allMovs = [];
+let allCotacoes = [];
+
+// ============================================================
+// AUTH
+// ============================================================
+window.login = async () => {
+  const email = document.getElementById('email').value.trim();
+  const pw = document.getElementById('password').value;
+  document.getElementById('auth-error').textContent = '';
+  try {
+    await signInWithEmailAndPassword(auth, email, pw);
+  } catch(e) {
+    document.getElementById('auth-error').textContent = 'E-mail ou senha inválidos.';
+  }
+};
+
+window.logout = () => signOut(auth);
+
+onAuthStateChanged(auth, async user => {
+  if (user) {
+    currentUser = user;
+    const snap = await getDoc(doc(db, 'usuarios', user.uid));
+    currentRole = snap.exists() ? snap.data().tipo : 'vendedor';
+    const nome = snap.exists() ? snap.data().nome : user.email;
+    document.getElementById('user-name').textContent = nome;
+    document.getElementById('user-badge').textContent = currentRole.toUpperCase();
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    if (currentRole === 'admin') {
+      document.getElementById('btn-tab-admin').style.display = 'inline-block';
+      document.getElementById('btn-tab-mov').style.display = 'inline-block';
+      document.getElementById('btn-tab-cotacao').style.display = 'inline-block';
+      document.getElementById('btn-novo-produto').style.display = 'inline-block';
+    } else if (currentRole === 'comprador') {
+      document.getElementById('btn-tab-cotacao').style.display = 'inline-block';
+      document.getElementById('btn-novo-produto').style.display = 'none';
+      document.getElementById('btn-tab-admin').style.display = 'none';
+      document.getElementById('btn-tab-mov').style.display = 'none';
+    } else {
+      // vendedor: dashboard (leitura compra), estoque, historico, hist.compras (leitura)
+      document.getElementById('btn-novo-produto').style.display = 'none';
+      document.getElementById('btn-tab-admin').style.display = 'none';
+      document.getElementById('btn-tab-mov').style.display = 'none';
+      document.getElementById('btn-tab-cotacao').style.display = 'inline-block';
+    }
+    iniciarListeners();
+    showTab('dashboard');
+  } else {
+    currentUser = null;
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+  }
+});
+
+// ============================================================
+// TABS
+// ============================================================
+window.showTab = (tab) => {
+  ['dashboard','estoque','movimentacao','historico','cotacao','admin'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t === tab ? '' : 'none';
+  });
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  event && event.target && event.target.classList.add('active');
+  if (tab === 'movimentacao') popularSelectProdutos();
+};
+
+// ============================================================
+// FIRESTORE LISTENERS
+// ============================================================
+function iniciarListeners() {
+  // Produtos
+  onSnapshot(query(collection(db,'produtos'), orderBy('codigo')), snap => {
+    allProdutos = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    renderEstoque(allProdutos);
+    renderDashboard();
+  });
+  // Movimentações
+  onSnapshot(query(collection(db,'movimentacoes'), orderBy('data','desc')), snap => {
+    allMovs = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    renderHistorico(allMovs);
+  });
+  // Cotações
+  onSnapshot(query(collection(db,'cotacoes'), orderBy('data','desc')), snap => {
+    allCotacoes = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    renderCotacao(allCotacoes);
+  });
+}
+
+// ============================================================
+// HISTÓRICO COTAÇÕES
+// ============================================================
+function renderCotacao(lista) {
+  const tbody = document.getElementById('tbl-cotacao');
+  const empty = document.getElementById('cotacao-empty');
+  if (!lista || !lista.length) {
+    tbody.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  tbody.innerHTML = lista.map(m => {
+    const dataFmt = m.data?.toDate
+      ? m.data.toDate().toLocaleDateString('pt-BR') + ' ' + m.data.toDate().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})
+      : '—';
+    const badge = m.valor === 'COMPRADO'
+      ? `<span class="status-ok">COMPRADO</span>`
+      : m.valor === 'COTANDO'
+      ? `<span class="status-comprar">COTANDO</span>`
+      : '—';
+    return `<tr>
+      <td>${dataFmt}</td>
+      <td><strong>${m.codigo_produto || '—'}</strong></td>
+      <td>${m.descricao || '—'}</td>
+      <td>${badge}</td>
+      <td>${m.prazo_compra || '—'}</td>
+      <td>${m.obs_compra || '—'}</td>
+      <td>${m.usuario || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+window.filtrarCotacao = () => {
+  const q = document.getElementById('search-cotacao').value.toLowerCase();
+  const st = document.getElementById('filter-cotacao-status').value;
+  let lista = allCotacoes;
+  if (q) lista = lista.filter(m =>
+    (m.codigo_produto||'').toLowerCase().includes(q) ||
+    (m.descricao||'').toLowerCase().includes(q)
+  );
+  if (st) lista = lista.filter(m => m.valor === st);
+  renderCotacao(lista);
+};
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard() {
+  const total = allProdutos.length;
+  const comprar = allProdutos.filter(p => p.situacao === 'COMPRAR').length;
+  const zero = allProdutos.filter(p => (p.saldo || 0) <= 0).length;
+  const ok = total - comprar;
+  document.getElementById('kpi-total').textContent = total;
+  document.getElementById('kpi-ok').textContent = ok;
+  document.getElementById('kpi-comprar').textContent = comprar;
+  document.getElementById('kpi-zero').textContent = zero;
+
+  const tbody = document.getElementById('tbl-alertas');
+  const alertas = allProdutos.filter(p => p.situacao === 'COMPRAR');
+  const canEdit = currentRole === 'admin' || currentRole === 'comprador';
+  const canSee  = canEdit || currentRole === 'vendedor';
+  const cols = canSee ? 8 : 4;
+
+  ['th-status-compra','th-prazo-compra','th-obs-compra','th-salvar-compra'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = canSee ? '' : 'none';
+  });
+
+  tbody.innerHTML = alertas.length === 0
+    ? `<tr><td colspan="${cols}" class="empty">Nenhum produto para comprar! ✅</td></tr>`
+    : alertas.map(p => {
+        const sc = p.status_compra || '';
+        const pr = p.prazo_compra || '';
+        const ob = p.obs_compra || '';
+        const bgColor = sc === 'COMPRADO' ? '#e8f5e9' : sc === 'COTANDO' ? '#fff3e0' : '#fff';
+        const badgeStatus = sc
+          ? `<span class="${sc==='COMPRADO'?'status-ok':'status-comprar'}">${sc}</span>`
+          : '—';
+
+        let compraFields = '';
+        if (canEdit) {
+          // Editável para admin e comprador — com botão Salvar
+          compraFields = `
+            <td>
+              <select id="sc-${p.id}" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);font-size:.8rem;background:${bgColor}">
+                <option value="">—</option>
+                <option value="COTANDO" ${sc==='COTANDO'?'selected':''}>COTANDO</option>
+                <option value="COMPRADO" ${sc==='COMPRADO'?'selected':''}>COMPRADO</option>
+              </select>
+            </td>
+            <td><input type="date" id="pr-${p.id}" value="${pr}" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);font-size:.8rem"></td>
+            <td><input type="text" id="ob-${p.id}" value="${ob}" placeholder="Observações..." style="width:160px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);font-size:.8rem"></td>
+            <td><button class="btn btn-sm btn-green" onclick="confirmarCompra('${p.id}')">💾 Salvar</button></td>`;
+        } else if (canSee) {
+          // Somente leitura para vendedor
+          compraFields = `
+            <td>${badgeStatus}</td>
+            <td>${pr || '—'}</td>
+            <td>${ob || '—'}</td>
+            <td>—</td>`;
+        }
+
+        const acaoBtn = currentRole === 'admin'
+          ? `<button class="btn btn-sm btn-orange" onclick="abrirMovRapida('${p.codigo}')">+ Entrada</button>`
+          : '—';
+        return `<tr>
+          <td><strong>${p.codigo}</strong></td>
+          <td>${p.descricao}</td>
+          <td><strong style="color:var(--red)">${p.saldo ?? 0}</strong></td>
+          ${compraFields}
+          <td>${acaoBtn}</td>
+        </tr>`;
+      }).join('');
+}
+
+// ============================================================
+// ESTOQUE
+// ============================================================
+function renderEstoque(lista) {
+  const tbody = document.getElementById('tbl-estoque');
+  const empty = document.getElementById('estoque-empty');
+  if (!lista.length) { tbody.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = lista.map(p => {
+    const sit = p.situacao === 'COMPRAR'
+      ? `<span class="status-comprar">COMPRAR</span>`
+      : `<span class="status-ok">OK</span>`;
+    const adminBtns = currentRole === 'admin'
+      ? `<button class="btn btn-sm btn-green" onclick="abrirModalProduto('${p.id}')">✏️</button>`
+      : '';
+    return `<tr>
+      <td><strong>${p.codigo}</strong></td>
+      <td>${p.descricao}</td>
+      <td>${p.endereco || '—'}</td>
+      <td>${p.entrada ?? 0}</td>
+      <td>${p.saida ?? 0}</td>
+      <td><strong>${p.saldo ?? 0}</strong></td>
+      <td>${sit}</td>
+      <td>${p.fornecedor || '—'}</td>
+      <td>${adminBtns}</td>
+    </tr>`;
+  }).join('');
+}
+
+window.filtrarEstoque = () => {
+  const q = document.getElementById('search-estoque').value.toLowerCase();
+  const filtrados = allProdutos.filter(p =>
+    p.codigo.toLowerCase().includes(q) || p.descricao.toLowerCase().includes(q)
+  );
+  renderEstoque(filtrados);
+};
+
+// ============================================================
+// MODAL PRODUTO
+// ============================================================
+window.abrirModalProduto = async (id = null) => {
+  document.getElementById('modal-produto-title').textContent = id ? 'Editar Produto' : 'Cadastrar Produto';
+  document.getElementById('prod-id').value = id || '';
+  if (id) {
+    const p = allProdutos.find(x => x.id === id);
+    if (p) {
+      document.getElementById('prod-codigo').value = p.codigo;
+      document.getElementById('prod-descricao').value = p.descricao;
+      document.getElementById('prod-endereco').value = p.endereco || '';
+      document.getElementById('prod-entrada').value = p.entrada || 0;
+      document.getElementById('prod-saida').value = p.saida || 0;
+      document.getElementById('prod-saldo').value = p.saldo || 0;
+      document.getElementById('prod-alarme').value = p.alarme || 0;
+      document.getElementById('prod-prazo').value = p.prazo_entrega || '';
+      document.getElementById('prod-fornecedor').value = p.fornecedor || '';
+      document.getElementById('prod-status').value = p.status || '';
+    }
+  } else {
+    ['prod-codigo','prod-descricao','prod-endereco','prod-prazo','prod-fornecedor','prod-status'].forEach(id => document.getElementById(id).value = '');
+    ['prod-entrada','prod-saida','prod-saldo','prod-alarme'].forEach(id => document.getElementById(id).value = 0);
+  }
+  document.getElementById('modal-produto').classList.add('open');
+};
+
+window.recalcSaldo = () => {
+  const e = parseFloat(document.getElementById('prod-entrada').value) || 0;
+  const s = parseFloat(document.getElementById('prod-saida').value) || 0;
+  document.getElementById('prod-saldo').value = e - s;
+};
+
+window.salvarProduto = async () => {
+  const codigo = document.getElementById('prod-codigo').value.trim().toUpperCase();
+  const descricao = document.getElementById('prod-descricao').value.trim();
+  if (!codigo || !descricao) { toast('Código e descrição obrigatórios', 'error'); return; }
+  const entrada = parseFloat(document.getElementById('prod-entrada').value) || 0;
+  const saida = parseFloat(document.getElementById('prod-saida').value) || 0;
+  const saldo = entrada - saida;
+  const alarme = parseFloat(document.getElementById('prod-alarme').value) || 0;
+  const situacao = saldo <= alarme && alarme > 0 ? 'COMPRAR' : (saldo <= 0 ? 'COMPRAR' : 'OK');
+
+  const data = {
+    codigo, descricao,
+    endereco: document.getElementById('prod-endereco').value.trim(),
+    entrada, saida, saldo, situacao, alarme,
+    prazo_entrega: document.getElementById('prod-prazo').value.trim(),
+    fornecedor: document.getElementById('prod-fornecedor').value.trim(),
+    status: document.getElementById('prod-status').value.trim(),
+    updated_at: serverTimestamp()
+  };
+
+  const id = document.getElementById('prod-id').value;
+  try {
+    if (id) {
+      await updateDoc(doc(db,'produtos',id), data);
+      toast('Produto atualizado!', 'success');
+    } else {
+      data.created_at = serverTimestamp();
+      await setDoc(doc(db,'produtos',codigo), data);
+      toast('Produto cadastrado!', 'success');
+    }
+    fecharModal('modal-produto');
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+};
+
+// ============================================================
+// MOVIMENTAÇÃO
+// ============================================================
+function popularSelectProdutos() {
+  const sel = document.getElementById('mov-codigo');
+  sel.innerHTML = '<option value="">Selecione...</option>' +
+    allProdutos.map(p => `<option value="${p.codigo}">${p.codigo} — ${p.descricao}</option>`).join('');
+}
+
+window.atualizarLabelMov = () => {
+  const tipo = document.getElementById('mov-tipo').value;
+  document.getElementById('mov-label-qtd').textContent = tipo === 'entrada' ? 'Quantidade a entrar' : 'Quantidade a ' + tipo;
+};
+
+window.registrarMovimentacao = async () => {
+  if (currentRole !== 'admin') {
+  document.getElementById('btn-novo-produto').style.display = 'none';
+  document.querySelectorAll('nav button')[2].style.display = 'none';
+}
+  const tipo = document.getElementById('mov-tipo').value;
+  const codigo = document.getElementById('mov-codigo').value;
+  const qtd = parseFloat(document.getElementById('mov-qtd').value);
+  const obs = document.getElementById('mov-obs').value.trim();
+
+  if (!codigo) { toast('Selecione um produto', 'error'); return; }
+  if (!qtd || qtd <= 0) { toast('Quantidade inválida', 'error'); return; }
+
+  const produto = allProdutos.find(p => p.codigo === codigo);
+  if (!produto) { toast('Produto não encontrado', 'error'); return; }
+
+  let novaEntrada = produto.entrada || 0;
+  let novaSaida = produto.saida || 0;
+
+  if (tipo === 'entrada') novaEntrada += qtd;
+  else novaSaida += qtd;
+
+  const novoSaldo = novaEntrada - novaSaida;
+  const alarme = produto.alarme || 0;
+  const situacao = novoSaldo <= 0 || (alarme > 0 && novoSaldo <= alarme) ? 'COMPRAR' : 'OK';
+
+  try {
+    // Registrar movimentação
+    await addDoc(collection(db,'movimentacoes'), {
+      codigo_produto: codigo,
+      descricao: produto.descricao,
+      tipo, quantidade: qtd,
+      data: serverTimestamp(),
+      usuario: currentUser.email,
+      observacao: obs
+    });
+    // Atualizar estoque — se virou OK, zera campos de compra
+    const resetCompra = situacao === 'OK' ? { status_compra: '', prazo_compra: '', obs_compra: '' } : {};
+    await updateDoc(doc(db,'produtos', produto.id), {
+      entrada: novaEntrada,
+      saida: novaSaida,
+      saldo: novoSaldo,
+      situacao,
+      ...resetCompra,
+      updated_at: serverTimestamp()
+    });
+    document.getElementById('mov-qtd').value = '';
+    document.getElementById('mov-obs').value = '';
+    toast(`${tipo.toUpperCase()} registrada! Novo saldo: ${novoSaldo}`, 'success');
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+};
+
+window.abrirMovRapida = (codigo) => {
+  showTab('movimentacao');
+  document.querySelectorAll('nav button')[2].classList.add('active');
+  popularSelectProdutos();
+  setTimeout(() => {
+    document.getElementById('mov-tipo').value = 'entrada';
+    document.getElementById('mov-codigo').value = codigo;
+  }, 100);
+};
+
+// ============================================================
+// HISTÓRICO
+// ============================================================
+function renderHistorico(lista) {
+  const tbody = document.getElementById('tbl-historico');
+  const empty = document.getElementById('hist-empty');
+  if (!lista.length) { tbody.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = lista.map(m => {
+    const data = m.data?.toDate ? m.data.toDate().toLocaleDateString('pt-BR') + ' ' + m.data.toDate().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '—';
+    const badge = `<span class="tipo-${m.tipo}">${m.tipo.toUpperCase()}</span>`;
+    return `<tr>
+      <td>${data}</td>
+      <td><strong>${m.codigo_produto}</strong></td>
+      <td>${m.descricao || '—'}</td>
+      <td>${badge}</td>
+      <td>${m.quantidade}</td>
+      <td>${m.usuario}</td>
+      <td>${m.observacao || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+window.filtrarHistorico = () => {
+  const q = document.getElementById('search-hist').value.toLowerCase();
+  const tipo = document.getElementById('filter-tipo').value;
+  const filtrados = allMovs.filter(m =>
+    (m.codigo_produto.toLowerCase().includes(q) || (m.descricao||'').toLowerCase().includes(q)) &&
+    (!tipo || m.tipo === tipo)
+  );
+  renderHistorico(filtrados);
+};
+
+// ============================================================
+// ADMIN — IMPORTAR PLANILHA
+// ============================================================
+window.importarProdutos = async () => {
+  if (currentRole !== 'admin') { toast('Apenas admins', 'error'); return; }
+  const status = document.getElementById('import-status');
+  status.textContent = 'Importando...';
+  let ok = 0;
+  for (const p of PRODUTOS_PLANILHA) {
+    const saldo = p.entrada - p.saida;
+    const situacao = saldo <= 0 && p.alarme > 0 ? 'COMPRAR' : (saldo <= 0 && (p.entrada > 0 || p.saida > 0) ? 'COMPRAR' : 'OK');
+    // Itens com alarme=1 são "COMPRAR" na planilha original
+    const sit2 = p.alarme === 1 ? 'COMPRAR' : (saldo <= 0 && p.entrada === 0 ? 'OK' : situacao);
+    try {
+      await setDoc(doc(db,'produtos', p.codigo), {
+        ...p, saldo, situacao: sit2,
+        foto_url: '',
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp()
+      }, { merge: true });
+      ok++;
+      status.textContent = `Importando ${ok}/${PRODUTOS_PLANILHA.length}...`;
+    } catch(e) { console.error(p.codigo, e); }
+  }
+  status.textContent = `✅ ${ok} produtos importados com sucesso!`;
+  toast('Importação concluída!', 'success');
+};
+
+// ============================================================
+// ADMIN — CRIAR USUÁRIO
+// ============================================================
+window.abrirModalUsuario = () => document.getElementById('modal-usuario').classList.add('open');
+
+window.criarUsuario = async () => {
+  const nome = document.getElementById('usr-nome').value.trim();
+  const email = document.getElementById('usr-email').value.trim();
+  const senha = document.getElementById('usr-senha').value;
+  const tipo = document.getElementById('usr-tipo').value;
+  if (!nome || !email || !senha) { toast('Preencha todos os campos', 'error'); return; }
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, senha);
+    await setDoc(doc(db,'usuarios', cred.user.uid), { nome, email, tipo, created_at: serverTimestamp() });
+    toast('Usuário criado!', 'success');
+    fecharModal('modal-usuario');
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+};
+
+// ============================================================
+// UTILS
+// ============================================================
+window.fecharModal = (id) => document.getElementById(id).classList.remove('open');
+
+window.toast = (msg, type = '') => {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  setTimeout(() => el.className = '', 3000);
+};
+
+// Fechar modal clicando fora
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
+
+// ============================================================
+// CONFIRMAR COMPRA
+// ============================================================
+window.confirmarCompra = async (prodId) => {
+  const produto = allProdutos.find(p => p.id === prodId);
+  if (!produto) { toast('Produto não encontrado', 'error'); return; }
+  const scEl = document.getElementById('sc-' + prodId);
+  const prEl = document.getElementById('pr-' + prodId);
+  const obEl = document.getElementById('ob-' + prodId);
+  if (!scEl) { toast('Erro: campos não encontrados', 'error'); return; }
+  const sc = scEl.value || '';
+  const pr = prEl ? prEl.value : '';
+  const ob = obEl ? obEl.value : '';
+  if (!sc) { toast('Selecione COTANDO ou COMPRADO antes de salvar', 'error'); return; }
+  try {
+    // 1. Atualiza produto
+    await updateDoc(doc(db, 'produtos', prodId), {
+      status_compra: sc,
+      prazo_compra: pr,
+      obs_compra: ob,
+      updated_at: serverTimestamp()
+    });
+    // 2. Grava no histórico
+    const cotRef = collection(db, 'cotacoes');
+    await addDoc(cotRef, {
+      codigo_produto: produto.codigo,
+      descricao: produto.descricao,
+      valor: sc,
+      prazo_compra: pr,
+      obs_compra: ob,
+      data: serverTimestamp(),
+      usuario: currentUser.email
+    });
+    toast('✅ Salvo com sucesso!', 'success');
+  } catch(e) {
+    console.error('confirmarCompra error:', e);
+    toast('Erro: ' + e.message, 'error');
+  }
+};
+</script>
+</body>
+</html>
